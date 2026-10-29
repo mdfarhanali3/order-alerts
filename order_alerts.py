@@ -120,6 +120,16 @@ def fetch_items():
             browser.close()
             return []
 
+
+        # --- TEMP DEBUG (kaam hone ke baad hata dena) ---
+        page.screenshot(path="debug.png", full_page=True)
+        blocks = page.locator('#dis_dtl div[id^="PO-"]')
+        print(f"DEBUG: PO blocks = {blocks.count()}")
+        first = blocks.first
+        print(f"DEBUG: first block th={first.locator('th').count()} "
+              f"tr={first.locator('tr').count()} td={first.locator('td').count()}")
+        # ------------------------------------------------
+
         items = []
         for block in page.locator('#dis_dtl div[id^="PO-"]').all():
             po = block.get_attribute("id")  # e.g. PO-A000080688
@@ -143,6 +153,8 @@ def fetch_items():
                     "pending": to_int(col(rec, "Pending")),
                     "delivery": col(rec, "Delivery"),
                 })
+
+                print(f"DEBUG: items parsed = {len(items)}")
         browser.close()
         return items
 
