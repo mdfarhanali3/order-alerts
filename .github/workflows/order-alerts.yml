@@ -45,6 +45,15 @@ jobs:
           TG_CHAT_IDS: ${{ secrets.TG_CHAT_IDS }}
         run: python order_alerts.py
 
+      - name: Upload debug screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug
+          path: debug.png
+          retention-days: 1
+          if-no-files-found: ignore
+
       - name: Save seen orders
         if: always()
         run: |
