@@ -55,13 +55,25 @@ def save_seen(keys):
     SEEN_FILE.write_text(json.dumps(sorted(keys), indent=0))
 
 
+def goto(page, url, tries=3):
+    """Page kholo bina 'networkidle' ka wait kiye; slow network par retry karo."""
+    for attempt in range(1, tries + 1):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            return
+        except PWTimeout:
+            print(f"goto timeout (attempt {attempt}/{tries})")
+            if attempt == tries:
+                raise
+
+
 def login(page):
     """Homepage par form hidden hota hai: pehle top-right 'Login' button, phir modal form."""
-    page.goto(BASE_URL, wait_until="networkidle")
+    goto(page, BASE_URL)
 
     try:
         # 1. Top-right ka "Login" button (exact match, "Login to Dashboard" nahi)
-        page.get_by_text("Login", exact=True).first.click()
+        page.get_by_text("Login", exact=True).first.click(timeout=20000)
         # 2. Modal ka form visible hone tak wait
         page.locator("#uname").wait_for(state="visible", timeout=15000)
     except Exception:
@@ -71,8 +83,12 @@ def login(page):
 
     page.locator("#uname").fill(os.environ["SL_USER"])
     page.get_by_label("Password").fill(os.environ["SL_PASS"])
-    page.get_by_role("button", name="Login to Dashboard").click()
-    page.wait_for_load_state("networkidle")
+
+    try:
+        with page.expect_navigation(wait_until="domcontentloaded", timeout=30000):
+            page.get_by_role("button", name="Login to Dashboard").click()
+    except PWTimeout:
+        pass  # login AJAX se hua ho to page navigate nahi hota, aage badho
 
 
 def fetch_items():
@@ -83,14 +99,14 @@ def fetch_items():
 
         try:
             login(page)
+
+            goto(page, ORDERS_URL)
+            # Fails loudly (timeout) if login didn't work
+            page.get_by_text("Report Filters").first.wait_for(timeout=30000)
         except Exception:
+            page.screenshot(path="debug.png", full_page=True)
             browser.close()
             raise
-
-        page.goto(ORDERS_URL)
-        page.wait_for_load_state("networkidle")
-        # Fails loudly (timeout) if login didn't work
-        page.get_by_text("Report Filters").first.wait_for(timeout=20000)
 
         # The report is empty until you pick a From Date and click Display
         date_input = page.locator("input[type=date]").first
@@ -101,7 +117,7 @@ def fetch_items():
         page.get_by_text("Display", exact=True).first.click()
 
         try:
-            page.wait_for_selector('#dis_dtl div[id^="PO-"]', timeout=20000)
+            page.wait_for_selector('#dis_dtl div[id^="PO-"]', timeout=30000)
         except PWTimeout:
             browser.close()
             return []  # no pending orders in this date range
