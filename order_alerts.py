@@ -121,39 +121,50 @@ def fetch_items():
             return []
 
 
-        # --- TEMP DEBUG (kaam hone ke baad hata dena) ---
-        page.screenshot(path="debug.png", full_page=True)
-        blocks = page.locator('#dis_dtl div[id^="PO-"]')
-        print(f"DEBUG: PO blocks = {blocks.count()}")
-        first = blocks.first
-        print(f"DEBUG: first block th={first.locator('th').count()} "
-              f"tr={first.locator('tr').count()} td={first.locator('td').count()}")
-        # ------------------------------------------------
+       
+        # Poore report ko document order mein parse karo (nested PO divs se bhi kaam karta hai)
+        raw = page.evaluate(r"""
+        () => {
+          const clean = s => (s || '').replace(/\s+/g, ' ').trim();
+          const root = document.querySelector('#dis_dtl');
+          const nodes = root.querySelectorAll('div[id^="PO-"], tr');
+          const out = [];
+          let po = null, headers = null;
+          for (const el of nodes) {
+            if (el.tagName === 'DIV') {      // naya PO shuru
+              po = el.id;
+              headers = null;
+              continue;
+            }
+            if (el.querySelector('tr')) continue;   // sirf leaf rows
+            const cells = [...el.children].map(c => clean(c.innerText));
+            if (cells.some(c => /^ItemNo/i.test(c))) { headers = cells; continue; }
+            if (!po || !headers || cells.length < headers.length) continue;
+            const rec = {};
+            headers.forEach((h, i) => { rec[h] = cells[i]; });
+            rec.__po = po;
+            out.push(rec);
+          }
+          return out;
+        }
+        """)
 
         items = []
-        for block in page.locator('#dis_dtl div[id^="PO-"]').all():
-            po = block.get_attribute("id")  # e.g. PO-A000080688
-            headers = [clean(h) for h in block.locator("th").all_inner_texts()]
-            if not headers:
+        for rec in raw:
+            po = rec.pop("__po")
+            item, size = col(rec, "ItemNo"), col(rec, "Size")
+            if not item:
                 continue
-            for row in block.locator("tr").all():
-                cells = [clean(c) for c in row.locator("td").all_inner_texts()]
-                if len(cells) < len(headers):
-                    continue  # header/info rows
-                rec = dict(zip(headers, cells))
-                item, size = col(rec, "ItemNo"), col(rec, "Size")
-                if not item:
-                    continue
-                items.append({
-                    # hashed, so a public seen_orders.json reveals nothing readable
-                    "key": hashlib.sha256(f"{po}|{item}|{size}".encode()).hexdigest()[:16],
-                    "po": po,
-                    "item": item,
-                    "size": size,
-                    "pending": to_int(col(rec, "Pending")),
-                    "delivery": col(rec, "Delivery"),
-                })
-
+            items.append({
+                # hashed, so a public seen_orders.json reveals nothing readable
+                "key": hashlib.sha256(f"{po}|{item}|{size}".encode()).hexdigest()[:16],
+                "po": po,
+                "item": item,
+                "size": size,
+                "pending": to_int(col(rec, "Pending")),
+                "delivery": col(rec, "Delivery"),
+            })
+        print(f"DEBUG: items parsed = {len(items)}")
                 print(f"DEBUG: items parsed = {len(items)}")
         browser.close()
         return items
