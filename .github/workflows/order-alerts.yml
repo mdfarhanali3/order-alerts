@@ -1,0 +1,54 @@
+name: Order alerts
+
+on:
+  schedule:
+    # Every 10 minutes, 02:00-14:50 UTC = about 7:30 AM to 8:20 PM IST.
+    # (GitHub cron uses UTC; 5 minutes is the shortest allowed. Edit to change.)
+    # Unlimited free minutes on a PUBLIC repo; on a private repo use */30 instead.
+    - cron: "*/10 2-14 * * *"
+  workflow_dispatch:   # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write      # needed to save seen_orders.json back to the repo
+
+concurrency:
+  group: order-alerts
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - run: playwright install --with-deps chromium
+
+      - name: Check for new orders
+        env:
+          SL_USER: ${{ secrets.SL_USER }}
+          SL_PASS: ${{ secrets.SL_PASS }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_IDS: ${{ secrets.TG_CHAT_IDS }}
+        run: python order_alerts.py
+
+      - name: Save seen orders
+        if: always()
+        run: |
+          git config user.name "order-alerts-bot"
+          git config user.email "order-alerts-bot@users.noreply.github.com"
+          git add seen_orders.json || true
+          git diff --cached --quiet || (git commit -m "Update seen orders" && git push)
