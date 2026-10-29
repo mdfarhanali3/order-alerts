@@ -103,6 +103,22 @@ def fetch_items():
             goto(page, ORDERS_URL)
             # Fails loudly (timeout) if login didn't work
             page.get_by_text("Report Filters").first.wait_for(timeout=30000)
+
+            # Company & Location dropdown (#bin_code) ko "ALL COMPANY & ALL LOCATION" par set karo
+            page.locator("#bin_code").wait_for(state="visible", timeout=15000)
+            page.wait_for_function(
+                "document.querySelector('#bin_code').options.length > 1", timeout=15000
+            )
+            opts = page.locator("#bin_code option").all_inner_texts()
+            idx = next(
+                (i for i, t in enumerate(opts) if t.strip().upper().startswith("ALL")), None
+            )
+            if idx is None:
+                raise RuntimeError("ALL option not found in #bin_code")
+            page.locator("#bin_code").select_option(index=idx)
+            chosen = page.locator("#bin_code option:checked").inner_text().strip()
+            print(f"DEBUG: location selected = {chosen}")
+            page.wait_for_timeout(1000)
         except Exception:
             page.screenshot(path="debug.png", full_page=True)
             browser.close()
@@ -110,10 +126,10 @@ def fetch_items():
 
         # From Date field readonly hai aur default value pehle se bhari hoti hai,
         # isliye use chhue bina seedha Display dabate hain (jaise manually karte ho)
-        page.get_by_text("Display", exact=True).first.click()
+        page.locator("#d_btn").click()
 
         try:
-            page.wait_for_selector('#dis_dtl div[id^="PO-"]', timeout=30000)
+            page.wait_for_selector('#dis_dtl div[id^="PO-"]', timeout=60000)
         except PWTimeout:
             print("No PO blocks found after Display (no orders, or report didn't load).")
             page.screenshot(path="debug.png", full_page=True)
@@ -163,7 +179,7 @@ def fetch_items():
                 "delivery": col(rec, "Delivery"),
             })
 
-        print(f"DEBUG: items parsed = {len(items)}")
+        print(f"DEBUG: items parsed = {len(items)}, distinct POs = {len({i['po'] for i in items})}")
         browser.close()
         return items
 
