@@ -2,10 +2,11 @@ name: Order alerts
 
 on:
   schedule:
-    # Every 10 minutes, 02:00-14:50 UTC = about 7:30 AM to 8:20 PM IST.
-    # (GitHub cron uses UTC; 5 minutes is the shortest allowed. Edit to change.)
-    # Unlimited free minutes on a PUBLIC repo; on a private repo use */30 instead.
-    - cron: "*/10 2-14 * * *"
+    # Every 10 minutes, 9:00 AM to 11:00 PM IST (= 03:30 to 17:30 UTC).
+    # GitHub cron uses UTC, and IST is UTC+5:30, so the range is split into 3 lines.
+    - cron: "30-59/10 3 * * *"    # 03:30-03:50 UTC = 9:00-9:20 AM IST
+    - cron: "*/10 4-16 * * *"     # 04:00-16:50 UTC = 9:30 AM-10:20 PM IST
+    - cron: "0-30/10 17 * * *"    # 17:00-17:30 UTC = 10:30-11:00 PM IST
   workflow_dispatch:   # lets you run it manually from the Actions tab
 
 permissions:
