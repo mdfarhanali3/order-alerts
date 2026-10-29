@@ -183,17 +183,24 @@ def fetch_items():
         print(f"DEBUG: items parsed = {len(items)}, distinct POs = {len({i['po'] for i in items})}")
         browser.close()
         return items
-
+        
 
 def send_telegram(po, group):
     total = sum(i["pending"] for i in group)
+    same_date = len({i["delivery"] for i in group}) == 1
+    header_date = group[0]["delivery"] if same_date else "dates vary, see below"
     lines = [
         f"🆕 New order {po}",
-        f"{len(group)} item(s), total qty {total}, deliver by {group[0]['delivery']}",
+        f"{len(group)} item(s), total qty {total}, deliver by {header_date}",
         "",
     ]
     for i in group[:20]:
-        lines.append(f"• {i['item']} ({i['size']}) – qty {i['pending']} – bin {i['bin'] or '-'}")
+        line = f"• {i['item']} ({i['size']}) – qty {i['pending']}"
+        if i.get("bin"):
+            line += f" – bin {i['bin']}"
+        if not same_date:
+            line += f" – by {i['delivery']}"
+        lines.append(line)
     if len(group) > 20:
         lines.append(f"…and {len(group) - 20} more")
     text = "\n".join(lines)
