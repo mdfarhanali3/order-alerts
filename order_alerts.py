@@ -115,8 +115,10 @@ def fetch_items():
         try:
             page.wait_for_selector('#dis_dtl div[id^="PO-"]', timeout=30000)
         except PWTimeout:
+            print("No PO blocks found after Display (no orders, or report didn't load).")
+            page.screenshot(path="debug.png", full_page=True)
             browser.close()
-            return []  # no pending orders in this date range
+            return []
 
         items = []
         for block in page.locator('#dis_dtl div[id^="PO-"]').all():
@@ -173,12 +175,9 @@ def main():
     items = fetch_items()
     seen = load_seen()
 
-    if seen is None:
-        if items:  # first run: remember existing orders, don't spam old ones
-            save_seen({i["key"] for i in items})
-            print(f"First run: recorded {len(items)} existing order lines.")
-        else:
-            print("First run: no orders found; will try again next time.")
+    if seen is None:  # first run: existing orders yaad rakho, purane ke alerts mat bhejo
+        save_seen({i["key"] for i in items})  # items khali ho tab bhi file banegi
+        print(f"First run: recorded {len(items)} existing order lines.")
         return
 
     by_po = OrderedDict()
