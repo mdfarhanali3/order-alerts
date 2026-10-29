@@ -55,17 +55,37 @@ def save_seen(keys):
     SEEN_FILE.write_text(json.dumps(sorted(keys), indent=0))
 
 
+def login(page):
+    """Homepage par form hidden hota hai: pehle top-right 'Login' button, phir modal form."""
+    page.goto(BASE_URL, wait_until="networkidle")
+
+    try:
+        # 1. Top-right ka "Login" button (exact match, "Login to Dashboard" nahi)
+        page.get_by_text("Login", exact=True).first.click()
+        # 2. Modal ka form visible hone tak wait
+        page.locator("#uname").wait_for(state="visible", timeout=15000)
+    except Exception:
+        # Credentials fill hone se pehle liya jaata hai, isliye screenshot mein password nahi aata
+        page.screenshot(path="debug.png", full_page=True)
+        raise
+
+    page.locator("#uname").fill(os.environ["SL_USER"])
+    page.get_by_label("Password").fill(os.environ["SL_PASS"])
+    page.get_by_role("button", name="Login to Dashboard").click()
+    page.wait_for_load_state("networkidle")
+
+
 def fetch_items():
     """Return one dict per order line: PO number, item, size, qty, etc."""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(BASE_URL)
+        page = browser.new_page(viewport={"width": 1366, "height": 768})
 
-        page.get_by_label("User Name").fill(os.environ["SL_USER"])
-        page.get_by_label("Password").fill(os.environ["SL_PASS"])
-        page.get_by_role("button", name="Login to Dashboard").click()
-        page.wait_for_load_state("networkidle")
+        try:
+            login(page)
+        except Exception:
+            browser.close()
+            raise
 
         page.goto(ORDERS_URL)
         page.wait_for_load_state("networkidle")
