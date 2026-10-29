@@ -120,8 +120,6 @@ def fetch_items():
             browser.close()
             return []
 
-
-       
         # Poore report ko document order mein parse karo (nested PO divs se bhi kaam karta hai)
         raw = page.evaluate(r"""
         () => {
@@ -164,8 +162,8 @@ def fetch_items():
                 "pending": to_int(col(rec, "Pending")),
                 "delivery": col(rec, "Delivery"),
             })
+
         print(f"DEBUG: items parsed = {len(items)}")
-                print(f"DEBUG: items parsed = {len(items)}")
         browser.close()
         return items
 
