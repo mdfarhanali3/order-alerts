@@ -108,12 +108,8 @@ def fetch_items():
             browser.close()
             raise
 
-        # The report is empty until you pick a From Date and click Display
-        date_input = page.locator("input[type=date]").first
-        if date_input.count():
-            date_input.fill((date.today() - timedelta(days=DAYS_BACK)).isoformat())
-        else:
-            print("Warning: date input not found; using the page's default From Date.")
+        # From Date field readonly hai aur default value pehle se bhari hoti hai,
+        # isliye use chhue bina seedha Display dabate hain (jaise manually karte ho)
         page.get_by_text("Display", exact=True).first.click()
 
         try:
