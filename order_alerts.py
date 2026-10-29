@@ -177,6 +177,7 @@ def fetch_items():
                 "size": size,
                 "pending": to_int(col(rec, "Pending")),
                 "delivery": col(rec, "Delivery"),
+                "bin": col(rec, "Bin Code"),
             })
 
         print(f"DEBUG: items parsed = {len(items)}, distinct POs = {len({i['po'] for i in items})}")
@@ -192,7 +193,7 @@ def send_telegram(po, group):
         "",
     ]
     for i in group[:20]:
-        lines.append(f"• {i['item']} ({i['size']}) – qty {i['pending']}")
+        lines.append(f"• {i['item']} ({i['size']}) – qty {i['pending']} – bin {i['bin'] or '-'}")
     if len(group) > 20:
         lines.append(f"…and {len(group) - 20} more")
     text = "\n".join(lines)
@@ -206,7 +207,6 @@ def send_telegram(po, group):
         )
         if not r.ok:
             raise RuntimeError(f"Telegram error {r.status_code}: {r.text}")
-
 
 def main():
     items = fetch_items()
