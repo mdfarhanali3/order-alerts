@@ -2,11 +2,9 @@ name: Order alerts
   
 on:
   schedule:
-    # Every 10 minutes from 9:00 AM to 11:00 PM IST.
-    # GitHub cron uses UTC, and IST is UTC+5:30.
-    - cron: "30,40,50 3 * * *"          # 9:00-9:50 AM IST
-    - cron: "0,10,20,30,40,50 4-16 * * *" # 9:50 AM-10:50 PM IST
-    - cron: "0,10,20,30 17 * * *"      # 10:50-11:00 PM IST
+    - cron: "30,40,50 3 * * *"
+    - cron: "0,10,20,30,40,50 4-16 * * *"
+    - cron: "0,10,20,30 17 * * *"
   workflow_dispatch:
 
 permissions:
