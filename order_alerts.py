@@ -13,7 +13,6 @@ import json
 import os
 import re
 from collections import OrderedDict
-from datetime import date, timedelta
 from pathlib import Path
 
 import requests
@@ -24,8 +23,6 @@ BASE_URL = "https://sreeleathers.net/"
 ORDERS_URL = "https://sreeleathers.net/admin_panel.php?pgid=de0577856966eb0df0825bdb1873c46c"
 SEEN_FILE = Path(__file__).with_name("seen_orders.json")
 
-# The report only shows orders from the "From Date" onwards. Look back this many days.
-DAYS_BACK = 60
 
 
 def clean(text):
