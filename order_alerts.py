@@ -24,7 +24,6 @@ ORDERS_URL = "https://sreeleathers.net/admin_panel.php?pgid=de0577856966eb0df082
 SEEN_FILE = Path(__file__).with_name("seen_orders.json")
 
 
-
 def clean(text):
     """Collapse whitespace, including &nbsp; and newlines."""
     return " ".join(text.split())
@@ -126,35 +125,47 @@ def fetch_items():
         page.locator("#d_btn").click()
 
         try:
-            page.wait_for_selector('#dis_dtl div[id^="PO-"]', timeout=60000)
+            page.wait_for_selector("#dis_dtl table", timeout=60000)
         except PWTimeout:
-            print("No PO blocks found after Display (no orders, or report didn't load).")
+            print("No order tables found after Display (no orders, or report didn't load).")
             page.screenshot(path="debug.png", full_page=True)
             browser.close()
             return []
 
-        # Poore report ko document order mein parse karo (nested PO divs se bhi kaam karta hai)
+        # Report poora render hone tak wait (tables ki ginti stable ho jaye)
+        last, stable = -1, 0
+        for _ in range(15):
+            n = page.locator("#dis_dtl table").count()
+            if n == last:
+                stable += 1
+                if stable >= 3:
+                    break
+            else:
+                stable, last = 0, n
+            page.wait_for_timeout(1000)
+
+        # Har table ka PO number uske apne header text se lo ("Order No.- PO-..."),
+        # div id se nahi (div id agle PO ka hota hai, isliye galat label aata tha)
         raw = page.evaluate(r"""
         () => {
           const clean = s => (s || '').replace(/\s+/g, ' ').trim();
-          const root = document.querySelector('#dis_dtl');
-          const nodes = root.querySelectorAll('div[id^="PO-"], tr');
           const out = [];
-          let po = null, headers = null;
-          for (const el of nodes) {
-            if (el.tagName === 'DIV') {      // naya PO shuru
-              po = el.id;
-              headers = null;
-              continue;
+          for (const table of document.querySelectorAll('#dis_dtl table')) {
+            const first = table.querySelector('tr');
+            if (!first) continue;
+            const m = clean(first.innerText).match(/Order No\.?\s*-\s*(PO-[A-Za-z0-9]+)/i);
+            if (!m) continue;
+            const po = m[1];
+            let headers = null;
+            for (const tr of table.querySelectorAll('tr')) {
+              const cells = [...tr.children].map(c => clean(c.innerText));
+              if (cells.some(c => /^ItemNo/i.test(c))) { headers = cells; continue; }
+              if (!headers || cells.length < headers.length) continue;
+              const rec = {};
+              headers.forEach((h, i) => { rec[h] = cells[i]; });
+              rec.__po = po;
+              out.push(rec);
             }
-            if (el.querySelector('tr')) continue;   // sirf leaf rows
-            const cells = [...el.children].map(c => clean(c.innerText));
-            if (cells.some(c => /^ItemNo/i.test(c))) { headers = cells; continue; }
-            if (!po || !headers || cells.length < headers.length) continue;
-            const rec = {};
-            headers.forEach((h, i) => { rec[h] = cells[i]; });
-            rec.__po = po;
-            out.push(rec);
           }
           return out;
         }
@@ -180,7 +191,7 @@ def fetch_items():
         print(f"DEBUG: items parsed = {len(items)}, distinct POs = {len({i['po'] for i in items})}")
         browser.close()
         return items
-        
+
 
 def send_telegram(po, group):
     total = sum(i["pending"] for i in group)
@@ -211,6 +222,7 @@ def send_telegram(po, group):
         )
         if not r.ok:
             raise RuntimeError(f"Telegram error {r.status_code}: {r.text}")
+
 
 def main():
     items = fetch_items()
