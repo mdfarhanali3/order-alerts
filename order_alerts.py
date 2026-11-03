@@ -203,9 +203,9 @@ def send_telegram(po, group):
         "",
     ]
     for i in group[:20]:
-        line = f"• {i['item']} ({i['size']}) – qty {i['pending']}"
+        line = f"• {i['item']} ({i['size']}) – {i['pending']}"
         if i.get("bin"):
-            line += f" – bin {i['bin']}"
+            line += f" –  {i['bin']}"
         if not same_date:
             line += f" – by {i['delivery']}"
         lines.append(line)
