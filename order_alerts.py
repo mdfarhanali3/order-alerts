@@ -198,7 +198,7 @@ def send_telegram(po, group):
     same_date = len({i["delivery"] for i in group}) == 1
     header_date = group[0]["delivery"] if same_date else "dates vary, see below"
     lines = [
-        f"🆕 New order {po}",
+        f"🆕 {po}",
         f"{len(group)} item(s), total qty {total}, deliver by {header_date}",
         "",
     ]
